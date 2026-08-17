@@ -1,159 +1,202 @@
-# Turborepo starter
+# CineVerse 🎬
 
-This Turborepo starter is maintained by the Turborepo core team.
+> **Social Movie Discovery & Intelligent Cinema Booking Platform**
+>
+> A production-grade full-stack application combining Letterboxd-style movie discovery, real-time concurrency-safe seat booking, group watch parties, split payments, personalized recommendations, and an AI-powered movie assistant.
 
-## Using this example
+---
 
-Run the following command:
+## 🚀 Live Demo
+- **Frontend**: https://cineverse.vercel.app *(deploy to update)*
+- **API**: https://api.cineverse.app *(deploy to update)*
 
-```sh
-npx create-turbo@latest
+---
+
+## ✨ Features
+
+### 🎥 Movie Discovery
+- TMDB-powered trending, now playing, and upcoming movies
+- Genre, language, and rating filters
+- Movie details with cast, trailers, and reviews
+
+### 🎭 Letterboxd Social Layer
+- Movie diary with watched dates and rewatches
+- Star ratings (0.5–5.0) + multi-dimensional cinema ratings (comfort, sound, screen)
+- Public reviews with likes and comments
+- Custom lists (public/private) with drag-and-drop ordering
+- Social follow system + activity feed
+- Movie taste compatibility (Cosine & Jaccard similarity)
+
+### 🎫 Cinema Booking Engine
+- City → Theatre → Show → Seat selection flow
+- **Real-time Redis Lua atomic seat locking** (flagship feature)
+- Socket.IO live seat state updates
+- BullMQ 5-minute lock expiry worker
+- Razorpay payment integration
+- Idempotent webhook handling
+- Digital QR tickets
+
+### 🎉 Watch Parties & Group Booking
+- Create a party, invite friends, vote on movies
+- Adjacent seat allocation algorithm
+- Split payment per member with 15-minute expiry
+- Razorpay individual payment links
+
+### 🗓️ Movie Night Planner
+- Auto-selects show from friend taste compatibility + availability
+- Step-by-step wizard into group booking with split payment
+
+### 🤖 Intelligence Layer
+- **AI Taste Match Recommendations** — scored from ratings, genres, friend likes, showing status
+- **AI Movie Assistant** — conversational chat for recommendations and showtimes
+- **AI Review Summaries** — community sentiment analysis stored per movie
+
+### 🏆 Gamification
+- XP system: +100 for bookings, +25 for reviews, +15 for diary entries
+- Level progression and badge unlocks
+- Global and friend leaderboards
+- Movie curation challenges with progress tracking
+
+---
+
+## 🏗️ Architecture
+
+```
+Next.js 16 (TypeScript)
+       │
+  REST + WebSocket
+       │
+  Express API (TypeScript)
+       │
+┌──────┴──────────┬──────────────┐
+│                 │              │
+PostgreSQL    Redis 7        BullMQ
+(Prisma ORM)  (Seat Locks)  (Async Jobs)
 ```
 
-## What's inside?
+---
 
-This Turborepo includes the following packages/apps:
+## 🛠️ Tech Stack
 
-### Apps and Packages
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS v4 |
+| State | Zustand, TanStack Query |
+| Charts | Recharts |
+| Backend | Express, TypeScript, Socket.IO |
+| Database | PostgreSQL 16, Prisma ORM |
+| Cache/Locks | Redis 7, Redis Lua scripts |
+| Queue | BullMQ |
+| Payments | Razorpay |
+| Movie Data | TMDB API |
+| Media | Cloudinary |
+| Auth | JWT (access + refresh), HTTP-only cookies |
+| DevOps | Docker, Docker Compose, GitHub Actions |
+| Deployment | Vercel (frontend), Railway (API) |
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+---
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+## 🚦 Local Development
 
-### Utilities
+### Prerequisites
+- Node.js 22+
+- pnpm 9+
+- Docker & Docker Compose
 
-This Turborepo has some additional tools already setup for you:
+### Setup
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+```bash
+# 1. Clone the repo
+git clone https://github.com/yourusername/cineverse.git
+cd cineverse
 
-### Build
+# 2. Install dependencies
+pnpm install
 
-To build all apps and packages, run the following command:
+# 3. Start infrastructure (PostgreSQL + Redis)
+docker compose up -d
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+# 4. Copy environment files
+cp .env.example packages/database/.env
+cp .env.example apps/api/.env
+# Edit both .env files with your values
 
-```sh
-cd my-turborepo
-turbo build
+# 5. Run database migrations and seed
+pnpm --filter @repo/database exec prisma db push
+pnpm --filter @repo/database exec prisma db seed
+
+# 6. Start development servers (in separate terminals)
+pnpm --filter api dev       # API → http://localhost:4000
+pnpm --filter web dev       # Web → http://localhost:3000
 ```
 
-Without global `turbo`, use your package manager:
+---
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+## 🔐 Environment Variables
+
+See [`.env.example`](.env.example) for all required variables.
+
+Key variables:
+- `DATABASE_URL` — PostgreSQL connection string
+- `REDIS_URL` — Redis connection string
+- `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` — JWT signing secrets
+- `TMDB_API_KEY` — The Movie Database API key ([get one free](https://www.themoviedb.org/settings/api))
+- `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` — Razorpay credentials
+
+---
+
+## 🐳 Docker
+
+### Development
+```bash
+docker compose up -d
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+### Production
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env up -d
 ```
 
-Without global `turbo`:
+---
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+## 🧪 Testing
+
+```bash
+# Unit tests
+pnpm --filter api test
+
+# Build verification
+pnpm --filter api build
+pnpm --filter web build
 ```
 
-### Develop
+---
 
-To develop all apps and packages, run the following command:
+## 🚀 Deployment
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
+### Frontend — Vercel
+```bash
+cd apps/web
+npx vercel --prod
 ```
 
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+### API — Railway
+```bash
+# Push to main branch → GitHub Actions auto-deploys
+git push origin main
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+---
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+## 👤 Demo Credentials
 
-```sh
-turbo dev --filter=web
-```
+After running the seed script:
+- **User**: `user@cineverse.com` / `password123`
+- **Admin**: `admin@cineverse.com` / `password123`
+- **Theatre Owner**: `owner@cineverse.com` / `password123`
 
-Without global `turbo`:
+---
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
+## 📄 License
 
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+MIT — feel free to use for portfolio or learning.

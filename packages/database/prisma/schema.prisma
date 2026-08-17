@@ -1,0 +1,568 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  THEATRE_OWNER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum SeatType {
+  STANDARD
+  PREMIUM
+  RECLINER
+}
+
+enum MovieStatus {
+  NOW_SHOWING
+  UPCOMING
+  ARCHIVED
+}
+
+enum ShowSeatStatus {
+  AVAILABLE
+  LOCKED
+  BOOKED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+model User {
+  id              String          @id @default(uuid())
+  email           String          @unique
+  name            String?
+  password        String
+  role            Role            @default(USER)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relationships
+  theatres        Theatre[]       @relation("TheatreOwner")
+  bookings        Booking[]
+  reviews         Review[]
+  likes           ReviewLike[]
+  comments        ReviewComment[]
+  
+  // Social Follows
+  followers       Follow[]        @relation("Following")
+  following       Follow[]        @relation("Follower")
+  
+  // Watchlist
+  watchlist       Watchlist[]
+  
+  // Diary & Lists
+  diary           MovieDiary[]
+  lists           UserList[]
+
+  // Watch Party & Split Payments
+  hostedParties   WatchParty[]         @relation("Host")
+  partyMemberships WatchPartyMember[]
+  partyVotes       WatchPartyVote[]
+  splitPayments   SplitPaymentMember[]
+  xp              Int             @default(0)
+  level           Int             @default(1)
+  badges          UserBadge[]
+  challengeProgress UserChallengeProgress[]
+  notifications   Notification[]
+
+  @@index([email])
+}
+
+model City {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+
+  // Relationships
+  theatres  Theatre[]
+}
+
+model Theatre {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  cityId    String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  owner     User     @relation("TheatreOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  screens   Screen[]
+
+  @@index([cityId])
+  @@index([ownerId])
+}
+
+model Screen {
+  id        String   @id @default(uuid())
+  name      String   // E.g., "Screen 1", "IMAX"
+  theatreId String
+  createdAt DateTime @default(now())
+
+  // Relationships
+  theatre   Theatre  @relation(fields: [theatreId], references: [id], onDelete: Cascade)
+  seats     Seat[]
+  shows     Show[]
+
+  @@index([theatreId])
+}
+
+model Seat {
+  id        String   @id @default(uuid())
+  screenId  String
+  row       String   // E.g., "A", "B"
+  number    Int      // E.g., 1, 2, 3
+  type      SeatType @default(STANDARD)
+  createdAt DateTime @default(now())
+
+  // Relationships
+  screen    Screen   @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  showSeats ShowSeat[]
+
+  @@unique([screenId, row, number])
+  @@index([screenId])
+}
+
+model Movie {
+  id            String      @id @default(uuid())
+  tmdbId        Int         @unique
+  title         String
+  overview      String
+  posterPath    String?
+  backdropPath  String?
+  releaseDate   DateTime?
+  runtime       Int?        // in minutes
+  rating        Float       @default(0.0) // Average rating
+  language      String      @default("en")
+  genres        String[]    // List of genre names
+  status        MovieStatus @default(NOW_SHOWING)
+  aiSummary     String?     @db.Text
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relationships
+  shows         Show[]
+  reviews       Review[]
+  watchlist     Watchlist[]
+  diary         MovieDiary[]
+  listMovies    UserListMovie[]
+  partyVotes    WatchPartyVote[]
+
+  @@index([tmdbId])
+}
+
+model Show {
+  id            String     @id @default(uuid())
+  movieId       String
+  screenId      String
+  startTime     DateTime
+  endTime       DateTime
+  priceStandard Float
+  pricePremium  Float
+  priceRecliner Float
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relationships
+  movie         Movie      @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  screen        Screen     @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  showSeats     ShowSeat[]
+  bookings      Booking[]
+  watchParties  WatchParty[]
+
+  @@index([movieId])
+  @@index([screenId])
+  @@index([startTime])
+}
+
+model ShowSeat {
+  id         String         @id @default(uuid())
+  showId     String
+  seatId     String
+  status     ShowSeatStatus @default(AVAILABLE)
+  lockedAt   DateTime?      // For temporary Redis lock verification / cleanup
+  lockedById String?        // User ID holding the lock
+  bookingId  String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  // Relationships
+  show       Show           @relation(fields: [showId], references: [id], onDelete: Cascade)
+  seat       Seat           @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  booking    Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@unique([showId, seatId])
+  @@index([showId])
+  @@index([seatId])
+  @@index([bookingId])
+  @@index([status])
+}
+
+model Booking {
+  id             String        @id @default(uuid())
+  userId         String
+  showId         String
+  status         BookingStatus @default(PENDING)
+  totalAmount    Float
+  paymentId      String?       @unique // Razorpay Order ID or Payment ID
+  idempotencyKey String?       @unique // Client-generated idempotency key
+  qrCode         String?       // URL or text contents of the ticket QR
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relationships
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  show        Show          @relation(fields: [showId], references: [id], onDelete: Cascade)
+  showSeats   ShowSeat[]
+  splitPayment SplitPayment?
+
+  @@index([userId])
+  @@index([showId])
+}
+
+model Review {
+  id        String          @id @default(uuid())
+  userId    String
+  movieId   String
+  rating        Float           // E.g., 0.5 to 5.0
+  content       String          @db.Text
+  comfortRating Float           @default(0.0)
+  soundRating   Float           @default(0.0)
+  screenRating  Float           @default(0.0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relationships
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie     Movie           @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  likes     ReviewLike[]
+  comments  ReviewComment[]
+
+  @@unique([userId, movieId]) // One review per movie per user
+  @@index([userId])
+  @@index([movieId])
+}
+
+model ReviewLike {
+  userId    String
+  reviewId  String
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@id([userId, reviewId])
+}
+
+model ReviewComment {
+  id        String   @id @default(uuid())
+  reviewId  String
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  // Relationships
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Watchlist {
+  userId    String
+  movieId   String
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@id([userId, movieId])
+  @@index([userId])
+  @@index([movieId])
+}
+
+model MovieDiary {
+  id        String   @id @default(uuid())
+  userId    String
+  movieId   String
+  rating    Float?
+  watchedAt DateTime @default(now())
+  isRewatch Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([movieId])
+}
+
+model UserList {
+  id          String          @id @default(uuid())
+  userId      String
+  name        String
+  description String?         @db.Text
+  isPublic    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relationships
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movies      UserListMovie[]
+
+  @@index([userId])
+}
+
+model UserListMovie {
+  id        String   @id @default(uuid())
+  listId    String
+  movieId   String
+  position  Int
+  createdAt DateTime @default(now())
+
+  // Relationships
+  list      UserList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, movieId])
+  @@index([listId])
+  @@index([movieId])
+}
+
+model WatchParty {
+  id          String             @id @default(uuid())
+  hostId      String
+  name        String
+  showId      String?
+  status      String             @default("VOTING") // VOTING, BOOKING, COMPLETED, CANCELLED
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  // Relationships
+  host        User               @relation("Host", fields: [hostId], references: [id], onDelete: Cascade)
+  show        Show?              @relation(fields: [showId], references: [id], onDelete: SetNull)
+  members     WatchPartyMember[]
+  votes       WatchPartyVote[]
+  splitPayment SplitPayment[]
+
+  @@index([hostId])
+  @@index([showId])
+}
+
+model WatchPartyMember {
+  id           String     @id @default(uuid())
+  partyId      String
+  userId       String
+  status       String     @default("JOINED") // JOINED, LEFT
+  createdAt    DateTime   @default(now())
+
+  // Relationships
+  party        WatchParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, userId])
+  @@index([partyId])
+  @@index([userId])
+}
+
+model WatchPartyVote {
+  id           String     @id @default(uuid())
+  partyId      String
+  userId       String
+  movieId      String
+  createdAt    DateTime   @default(now())
+
+  // Relationships
+  party        WatchParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie        Movie      @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, userId, movieId])
+  @@index([partyId])
+  @@index([userId])
+  @@index([movieId])
+}
+
+model SplitPayment {
+  id            String               @id @default(uuid())
+  bookingId     String               @unique
+  partyId       String?
+  totalAmount   Float
+  status        String               @default("PENDING") // PENDING, PAID, EXPIRED, REFUNDED
+  expiresAt     DateTime
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  // Relationships
+  booking       Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  party         WatchParty?          @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  members       SplitPaymentMember[]
+
+  @@index([bookingId])
+  @@index([partyId])
+}
+
+model SplitPaymentMember {
+  id             String       @id @default(uuid())
+  splitPaymentId String
+  userId         String
+  amount         Float
+  status         String       @default("PENDING") // PENDING, PAID, REFUNDED
+  paymentId      String?      @unique
+  paidAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  // Relationships
+  splitPayment   SplitPayment @relation(fields: [splitPaymentId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([splitPaymentId, userId])
+  @@index([splitPaymentId])
+  @@index([userId])
+}
+
+model Badge {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  icon        String
+  createdAt   DateTime @default(now())
+  users       UserBadge[]
+}
+
+model UserBadge {
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+}
+
+model Challenge {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  xpReward    Int
+  targetCount Int
+  type        String   // WATCH_MOVIES, WRITE_REVIEWS, WATCH_PARTY
+  createdAt   DateTime @default(now())
+  userProgress UserChallengeProgress[]
+}
+
+model UserChallengeProgress {
+  id          String    @id @default(uuid())
+  userId      String
+  challengeId String
+  currentCount Int      @default(0)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
+  @@index([userId])
+  @@index([challengeId])
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  REFUND_ISSUED
+  NEW_FOLLOWER
+  REVIEW_LIKED
+  REVIEW_COMMENTED
+  WATCH_PARTY_INVITE
+  WATCH_PARTY_VOTE
+  CHALLENGE_COMPLETED
+  SHOW_CANCELLED
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  eventId     String
+  eventType   String
+  payload     Json
+  headers     Json?
+  requestId   String?
+  processed   Boolean   @default(false)
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([provider, eventId])
+  @@index([processed])
+  @@index([createdAt])
+}

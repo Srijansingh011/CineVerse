@@ -1,0 +1,24 @@
+{
+  "name": "@repo/database",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "main": "./src/client.ts",
+  "types": "./src/client.ts",
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.14.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.14.0",
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "5.9.2",
+    "tsx": "^4.7.1"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

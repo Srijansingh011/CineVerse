@@ -220,6 +220,7 @@ export class WatchPartyService {
     // Try to find a contiguous sequence of seatCount in each row group
     for (const key in grouped) {
       const group = grouped[key];
+      if (!group) continue;
       // Sort seats by seat number ascending
       group.sort((a, b) => a.seat.number - b.seat.number);
 
@@ -227,7 +228,7 @@ export class WatchPartyService {
         const candidate = group.slice(i, i + seatCount);
         let isContiguous = true;
         for (let j = 0; j < seatCount - 1; j++) {
-          if (candidate[j + 1].seat.number - candidate[j].seat.number !== 1) {
+          if (candidate[j + 1]!.seat.number - candidate[j]!.seat.number !== 1) {
             isContiguous = false;
             break;
           }
@@ -251,12 +252,12 @@ export class WatchPartyService {
 
     for (const key in grouped) {
       const group = grouped[key];
-      if (group.length < seatCount) continue;
+      if (!group || group.length < seatCount) continue;
       group.sort((a, b) => a.seat.number - b.seat.number);
 
       for (let i = 0; i <= group.length - seatCount; i++) {
         const candidate = group.slice(i, i + seatCount);
-        const range = candidate[seatCount - 1].seat.number - candidate[0].seat.number;
+        const range = candidate[seatCount - 1]!.seat.number - candidate[0]!.seat.number;
         if (range < minRange) {
           minRange = range;
           bestSubset = candidate;

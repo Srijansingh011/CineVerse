@@ -15,7 +15,7 @@ export class OwnerController {
   async listScreens(req: Request, res: Response) {
     try {
       const ownerId = (req as any).user.id;
-      const { theatreId } = req.params;
+      const theatreId = req.params.theatreId as string;
       const data = await ownerService.listScreens(theatreId, ownerId);
       res.json({ success: true, data });
     } catch (err: any) {

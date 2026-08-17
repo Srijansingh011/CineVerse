@@ -232,7 +232,7 @@ export class SocialController {
   public static async likeReview(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { id: reviewId } = req.params;
+      const reviewId = req.params.id as string;
 
       if (!userId) {
         res.status(401).json({ status: 'error', message: 'Unauthorized' });
@@ -249,7 +249,7 @@ export class SocialController {
   public static async unlikeReview(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { id: reviewId } = req.params;
+      const reviewId = req.params.id as string;
 
       if (!userId) {
         res.status(401).json({ status: 'error', message: 'Unauthorized' });
@@ -266,7 +266,7 @@ export class SocialController {
   public static async addComment(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { id: reviewId } = req.params;
+      const reviewId = req.params.id as string;
       const { content } = req.body;
 
       if (!userId) {
@@ -315,7 +315,7 @@ export class SocialController {
   public static async addMovieToList(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { id: listId } = req.params;
+      const listId = req.params.id as string;
       const { movieId } = req.body;
 
       if (!userId) {
@@ -338,7 +338,8 @@ export class SocialController {
   public static async removeMovieFromList(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { id: listId, movieId } = req.params;
+      const listId = req.params.id as string;
+      const movieId = req.params.movieId as string;
 
       if (!userId) {
         res.status(401).json({ status: 'error', message: 'Unauthorized' });
@@ -355,7 +356,7 @@ export class SocialController {
   public static async reorderList(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { id: listId } = req.params;
+      const listId = req.params.id as string;
       const { movieIdsOrdered } = req.body;
 
       if (!userId) {
@@ -397,7 +398,7 @@ export class SocialController {
   public static async calculateSimilarity(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userAId = req.user!.id;
-      const { targetUserId } = req.params;
+      const targetUserId = req.params.targetUserId as string;
 
       if (!userAId) {
         res.status(401).json({ status: 'error', message: 'Unauthorized' });

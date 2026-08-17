@@ -52,9 +52,11 @@ export class TasteService {
       let normB = 0;
 
       for (let i = 0; i < commonCount; i++) {
-        dotProduct += vectorA[i] * vectorB[i];
-        normA += vectorA[i] * vectorA[i];
-        normB += vectorB[i] * vectorB[i];
+        const valA = vectorA[i]!;
+        const valB = vectorB[i]!;
+        dotProduct += valA * valB;
+        normA += valA * valA;
+        normB += valB * valB;
       }
 
       const denominator = Math.sqrt(normA) * Math.sqrt(normB);

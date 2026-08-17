@@ -84,11 +84,11 @@ function findAdjacentSeats(seats: Seat[], count: number): Seat[] | null {
   const rowGroups: Record<string, Seat[]> = {};
   for (const s of seats) {
     if (!rowGroups[s.row]) rowGroups[s.row] = [];
-    rowGroups[s.row].push(s);
+    rowGroups[s.row]!.push(s);
   }
 
   for (const row of Object.keys(rowGroups).sort()) {
-    const available = rowGroups[row]
+    const available = rowGroups[row]!
       .filter((s) => s.available)
       .sort((a, b) => a.number - b.number);
 
@@ -96,7 +96,7 @@ function findAdjacentSeats(seats: Seat[], count: number): Seat[] | null {
     for (let i = 0; i <= available.length - count; i++) {
       const window = available.slice(i, i + count);
       const isConsecutive = window.every(
-        (s, idx) => idx === 0 || s.number === window[idx - 1].number + 1,
+        (s, idx) => idx === 0 || s.number === window[idx - 1]!.number + 1,
       );
       if (isConsecutive) return window;
     }
@@ -119,7 +119,7 @@ describe('Adjacent Seat Solver', () => {
     const result = findAdjacentSeats(seats, 3);
     expect(result).not.toBeNull();
     expect(result!.length).toBe(3);
-    expect(result![0].row).toBe('B');
+    expect(result![0]!.row).toBe('B');
   });
 
   it('returns null when not enough consecutive seats exist', () => {

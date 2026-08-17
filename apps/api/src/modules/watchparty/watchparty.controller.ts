@@ -31,7 +31,7 @@ export class WatchPartyController {
 
   public static async inviteUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { id: partyId } = req.params;
+      const partyId = req.params.id as string;
       const { email } = req.body;
 
       if (!email) {
@@ -49,7 +49,7 @@ export class WatchPartyController {
   public static async leaveParty(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { id: partyId } = req.params;
+      const partyId = req.params.id as string;
 
       if (!userId) {
         res.status(401).json({ status: 'error', message: 'Unauthorized' });
@@ -66,7 +66,7 @@ export class WatchPartyController {
   public static async suggestMovie(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { id: partyId } = req.params;
+      const partyId = req.params.id as string;
       const { movieId } = req.body;
 
       if (!userId) {
@@ -88,7 +88,7 @@ export class WatchPartyController {
 
   public static async getVotes(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { id: partyId } = req.params;
+      const partyId = req.params.id as string;
       const voteData = await WatchPartyService.getVotes(partyId);
       res.json({ status: 'success', data: voteData });
     } catch (error: any) {
@@ -99,7 +99,7 @@ export class WatchPartyController {
   public static async selectMovieShow(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const hostId = req.user!.id;
-      const { id: partyId } = req.params;
+      const partyId = req.params.id as string;
       const { showId } = req.body;
 
       if (!hostId) {
@@ -194,7 +194,7 @@ export class WatchPartyController {
   public static async paySplitShare(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { splitPaymentId } = req.params;
+      const splitPaymentId = req.params.splitPaymentId as string;
       const { paymentId } = req.body;
 
       if (!userId) {

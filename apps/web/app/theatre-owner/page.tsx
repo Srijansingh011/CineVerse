@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { PageShell } from '../../components/layout/PageShell';
+import Navbar from '../../components/Navbar';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { apiFetch } from '../../lib/api';

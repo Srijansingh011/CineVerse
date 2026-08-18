@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Navbar from '../../components/Navbar';
+import { PageShell } from '../../components/layout/PageShell';
+import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { apiFetch } from '../../lib/api';
 import { 

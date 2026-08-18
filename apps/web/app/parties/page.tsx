@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Navbar from '../../components/Navbar';
+import { PageShell } from '../../components/layout/PageShell';
+import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { apiFetch } from '../../lib/api';
 import { 
@@ -240,34 +242,26 @@ export default function WatchPartyPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex flex-col items-center justify-center p-4">
-          <div className="text-center max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
-            <Users className="h-12 w-12 text-indigo-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold">Access Denied</h2>
-            <p className="text-sm text-slate-400 mt-2 mb-6">Please log in to your account to participate in watch party voting and group bookings.</p>
-            <a href="/login" className="block w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold transition">
-              Log In Now
-            </a>
-          </div>
+      <PageShell>
+        <div className="cv-container cv-page">
+          <EmptyState
+            title="Sign in for watch parties"
+            description="Invite friends, vote on a film, and split the bill."
+            action={<Link href="/login"><Button size="sm">Sign in</Button></Link>}
+          />
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col pb-16">
-      <Navbar />
-
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8">
+    <PageShell>
+      <main className="cv-container cv-page">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Sidebar Party Selection & Create */}
           <div className="space-y-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
-              <h2 className="text-md font-bold text-slate-200 mb-4 flex items-center gap-2">
-                <Users className="h-5 w-5 text-indigo-400" /> My Watch Parties
-              </h2>
+            <div className="border border-[var(--border)] rounded-[8px] p-5">
+              <h2 className="text-[16px] font-semibold mb-4">Watch parties</h2>
               
               {/* Form to create party */}
               <form onSubmit={handleCreateParty} className="space-y-3 mb-6">
@@ -277,12 +271,12 @@ export default function WatchPartyPage() {
                   placeholder="New party name"
                   value={newPartyName}
                   onChange={(e) => setNewPartyName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:border-indigo-500 outline-none"
+                  className="w-full bg-surface border border-[var(--border)] rounded-[6px] px-3 py-2 text-[13px] outline-none"
                 />
                 <button
                   type="submit"
                   disabled={createLoading}
-                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-850 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1"
+                  className="w-full py-2 bg-primary hover:bg-primary-hover text-white rounded-[6px] text-[13px] font-semibold flex items-center justify-center gap-1"
                 >
                   <Plus className="h-4 w-4" /> Create Party
                 </button>
@@ -315,7 +309,7 @@ export default function WatchPartyPage() {
           {/* Main Party Dashboard details panel */}
           <div className="lg:col-span-2 space-y-6">
             {!activePartyId ? (
-              <div className="bg-slate-900/30 border border-dashed border-slate-850 rounded-3xl p-12 text-center h-full flex flex-col items-center justify-center">
+              <div className="bg-slate-900/30 border border-dashed border-slate-850 rounded-[8px] p-12 text-center h-full flex flex-col items-center justify-center">
                 <Users className="h-12 w-12 text-slate-700 mb-4" />
                 <h3 className="text-lg font-bold text-slate-300">No Active Party Selected</h3>
                 <p className="text-xs text-slate-500 mt-2 max-w-sm mx-auto leading-relaxed">
@@ -323,14 +317,14 @@ export default function WatchPartyPage() {
                 </p>
               </div>
             ) : loadingParty && !party ? (
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center">
+              <div className="bg-slate-900 border border-slate-800 rounded-[8px] p-12 text-center">
                 <RefreshCw className="h-8 w-8 text-indigo-500 animate-spin mx-auto mb-3" />
                 <p className="text-sm text-slate-400">Loading party room state...</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {/* Party Details Header */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 relative overflow-hidden">
+                <div className="bg-slate-900 border border-slate-800 rounded-[8px] p-6 relative overflow-hidden">
                   <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-600/5 rounded-full blur-3xl"></div>
                   <div className="flex justify-between items-start relative">
                     <div>
@@ -382,7 +376,7 @@ export default function WatchPartyPage() {
 
                 {/* Movie suggestion & voting segment */}
                 {party?.status === 'VOTING' && (
-                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+                  <div className="bg-slate-900 border border-slate-800 rounded-[8px] p-6">
                     <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
                       <Vote className="h-5 w-5 text-indigo-400" /> Suggested Movie Candidates
                     </h3>
@@ -454,7 +448,7 @@ export default function WatchPartyPage() {
                 {/* Booking & seats coordination segment */}
                 {party?.status === 'BOOKING' && (
                   <div className="space-y-6">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+                    <div className="bg-slate-900 border border-slate-800 rounded-[8px] p-6">
                       <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
                         <Armchair className="h-5 w-5 text-indigo-400" /> Contiguous Seat Allocator
                       </h3>
@@ -508,7 +502,7 @@ export default function WatchPartyPage() {
 
                     {/* Split checkout payment list */}
                     {splitPaymentStatus && (
-                      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+                      <div className="bg-slate-900 border border-slate-800 rounded-[8px] p-6">
                         <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
                           <DollarSign className="h-5 w-5 text-indigo-400" /> Split Billing Checklist (15 min Lock)
                         </h3>
@@ -551,6 +545,6 @@ export default function WatchPartyPage() {
           </div>
         </div>
       </main>
-    </div>
+    </PageShell>
   );
 }

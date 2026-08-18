@@ -2,26 +2,32 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '../../../components/Navbar';
+import { PageShell } from '../../../components/layout/PageShell';
 import { apiFetch } from '../../../lib/api';
 import { useAuthStore } from '../../../store/authStore';
-import { Star, Calendar, Clock, MessageSquare, Plus, Heart, ThumbsUp, Bot, Sparkles, ChevronLeft, Share2 } from 'lucide-react';
+import { Star } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '../../../components/ui/Button';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { Badge } from '../../../components/ui/Badge';
+import { Alert } from '../../../components/ui/Alert';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { MovieCard } from '../../../components/movie/MovieCard';
+import { tmdbImage, movieRuntime, movieOverview } from '../../../lib/media';
+import { formatRuntime, formatYear, initials } from '../../../lib/format';
+import { cn } from '../../../lib/cn';
 
 export default function MovieDetails({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const movieId = resolvedParams.id;
   const router = useRouter();
-  
+
   const { isAuthenticated, user } = useAuthStore();
   const [movie, setMovie] = useState<any | null>(null);
+  const [similar, setSimilar] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Review form state
   const [reviewRating, setReviewRating] = useState<number>(5.0);
   const [reviewContent, setReviewContent] = useState<string>('');
   const [comfortRating, setComfortRating] = useState<number>(0.0);
@@ -30,14 +36,26 @@ export default function MovieDetails({ params }: { params: Promise<{ id: string 
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [listMsg, setListMsg] = useState<string | null>(null);
 
   const fetchMovieDetails = async () => {
     try {
       setIsLoading(true);
       const res = await apiFetch(`/movies/${movieId}`);
       setMovie(res.data);
+      try {
+        const trend = await apiFetch('/movies/trending');
+        const genres: string[] = res.data?.genres || [];
+        setSimilar(
+          (trend.data || [])
+            .filter((m: any) => m.id !== movieId && m.genres?.some((g: string) => genres.includes(g)))
+            .slice(0, 6)
+        );
+      } catch {
+        setSimilar([]);
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to load movie details');
+      setError('We couldn’t load this title. Try again in a moment.');
     } finally {
       setIsLoading(false);
     }
@@ -50,7 +68,7 @@ export default function MovieDetails({ params }: { params: Promise<{ id: string 
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewContent.trim()) return;
-    
+
     setIsSubmittingReview(true);
     setReviewError(null);
     try {
@@ -74,7 +92,7 @@ export default function MovieDetails({ params }: { params: Promise<{ id: string 
         router.push(`/login?redirect=/movies/${movieId}`);
         return;
       }
-      setReviewError(err.message || 'Failed to submit review');
+      setReviewError('Couldn’t post your review. Please try again.');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -90,310 +108,217 @@ export default function MovieDetails({ params }: { params: Promise<{ id: string 
         router.push(`/login?redirect=/movies/${movieId}`);
         return;
       }
-      alert(err.message || 'Failed to generate AI highlights summary');
+      setReviewError('Couldn’t generate insights right now.');
     } finally {
       setIsGeneratingAI(false);
     }
   };
 
+  const addToWatchlist = async () => {
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=/movies/${movieId}`);
+      return;
+    }
+    try {
+      await apiFetch('/social/watchlist/toggle', {
+        method: 'POST',
+        body: JSON.stringify({ movieId }),
+      });
+      setListMsg('Watchlist updated');
+    } catch {
+      setListMsg('Couldn’t update watchlist');
+    }
+  };
+
+  const logMovie = async () => {
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=/movies/${movieId}`);
+      return;
+    }
+    try {
+      await apiFetch('/social/diary', {
+        method: 'POST',
+        body: JSON.stringify({
+          movieId,
+          rating: 4,
+          watchedAt: new Date(),
+          isRewatch: false,
+        }),
+      });
+      setListMsg('Logged to your diary');
+    } catch {
+      setListMsg('Couldn’t log this movie');
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#05050A] text-slate-100 flex flex-col font-sans">
-        <Navbar />
-        <div className="w-full h-[60vh] relative">
-          <Skeleton className="w-full h-full rounded-none" />
-        </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-32 relative z-10 w-full grid grid-cols-1 md:grid-cols-12 gap-8">
-          <div className="md:col-span-3 lg:col-span-3 space-y-4">
-            <Skeleton className="aspect-[2/3] w-full rounded-2xl" />
-          </div>
-          <div className="md:col-span-9 lg:col-span-9 space-y-6 pt-32">
-            <Skeleton className="h-12 w-3/4" />
-            <Skeleton className="h-6 w-1/2" />
-            <Skeleton className="h-32 w-full" />
+      <PageShell>
+        <Skeleton className="w-full h-[320px] rounded-none" />
+        <div className="cv-container -mt-24 relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8">
+          <Skeleton className="md:col-span-3 aspect-[2/3] rounded-[8px]" />
+          <div className="md:col-span-9 space-y-3 pt-28">
+            <Skeleton className="h-10 w-2/3" />
+            <Skeleton className="h-20 w-full" />
           </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (error || !movie) {
     return (
-      <div className="min-h-screen bg-[#05050A] text-slate-100 flex flex-col font-sans">
-        <Navbar />
-        <div className="flex-1 flex flex-col items-center justify-center p-4">
-          <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-6 text-center max-w-md">
-            <h2 className="text-xl font-bold text-rose-400">Error</h2>
-            <p className="mt-2 text-sm text-slate-300">{error || 'Movie not found'}</p>
-            <Link href="/"><Button className="mt-6" variant="outline">Back to Home</Button></Link>
-          </div>
+      <PageShell>
+        <div className="cv-container cv-page">
+          <Alert title="Something went wrong" action={<Link href="/"><Button variant="outline" size="sm">Back home</Button></Link>}>
+            {error || 'This movie could not be found.'}
+          </Alert>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
-  const movieYear = movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 'N/A';
-  const tmdbPosterUrl = movie.posterPath 
-    ? (movie.posterPath.startsWith('http') ? movie.posterPath : `https://image.tmdb.org/t/p/w500${movie.posterPath}`) 
-    : 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop';
-  const tmdbBackdropUrl = movie.backdropPath 
-    ? (movie.backdropPath.startsWith('http') ? movie.backdropPath : `https://image.tmdb.org/t/p/original${movie.backdropPath}`) 
-    : '';
+  const movieYear = formatYear(movie.releaseDate);
+  const poster = tmdbImage(movie.posterPath, "w500");
+  const backdrop = tmdbImage(movie.backdropPath, "original");
 
   return (
-    <div className="min-h-screen bg-[#05050A] text-slate-100 flex flex-col pb-20 font-sans">
-      <Navbar />
-
-      {/* Backdrop Hero Section */}
-      <div className="relative w-full h-[50vh] sm:h-[60vh] overflow-hidden">
-        {tmdbBackdropUrl ? (
-          <div className="absolute inset-0">
-            <img 
-              src={tmdbBackdropUrl} 
-              alt={movie.title}
-              className="w-full h-full object-cover opacity-40 mix-blend-screen scale-105 animate-in fade-in duration-1000"
-            />
-          </div>
+    <PageShell>
+      <div className="relative w-full h-[280px] sm:h-[360px] overflow-hidden">
+        {backdrop ? (
+          <Image src={backdrop} alt="" fill className="object-cover" sizes="100vw" priority />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-tr from-indigo-950/30 to-[#0A0A12]" />
+          <div className="absolute inset-0 bg-surface" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#05050A] via-[#05050A]/60 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#05050A] via-[#05050A]/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/55 to-black/20" />
       </div>
 
-      {/* Movie Details Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-40 sm:-mt-64 relative z-10 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-        
-        {/* Poster Column */}
-        <div className="lg:col-span-3 flex flex-col gap-6">
-          <div className="rounded-2xl border border-white/10 bg-[#0A0A12] overflow-hidden shadow-2xl shadow-black ring-1 ring-white/5">
-            <img 
-              src={tmdbPosterUrl} 
-              alt={movie.title}
-              className="w-full h-auto object-cover"
-            />
-          </div>
-          <div className="flex flex-col gap-3">
-            <Link href={`/shows?movie=${movie.id}`} className="w-full">
-              <Button size="lg" className="w-full h-12 text-base shadow-lg shadow-indigo-500/20">Book Tickets</Button>
-            </Link>
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1 bg-[#0A0A12] hover:bg-[#1E1E2E] border-[#1E1E2E]">
-                <Plus className="h-4 w-4 mr-2 text-slate-400" /> Watchlist
-              </Button>
-              <Button variant="outline" className="flex-1 bg-[#0A0A12] hover:bg-[#1E1E2E] border-[#1E1E2E]">
-                <Heart className="h-4 w-4 mr-2 text-slate-400" /> Like
-              </Button>
+      <main className="cv-container relative z-10 -mt-28 pb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
+          <div className="lg:col-span-3">
+            <div className="relative aspect-[2/3] w-full max-w-[240px] lg:max-w-none rounded-[8px] overflow-hidden bg-surface-2">
+              {poster ? (
+                <Image src={poster} alt={movie.title} fill className="object-cover" sizes="240px" />
+              ) : null}
             </div>
-            <Button variant="ghost" className="w-full text-slate-400 hover:text-white">
-              <Share2 className="h-4 w-4 mr-2" /> Share
-            </Button>
           </div>
-        </div>
 
-        {/* Info Column */}
-        <div className="lg:col-span-9 space-y-12 lg:pt-16">
-          <div className="space-y-4">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight drop-shadow-lg">
-              {movie.title}
-            </h1>
-            
-            <div className="flex flex-wrap items-center gap-4 text-sm text-slate-300 font-medium">
-              {movie.rating && (
-                <div className="flex items-center gap-1 text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
-                  <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                  {movie.rating.toFixed(1)}
-                </div>
-              )}
-              <div className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-slate-400" />
-                {movieYear}
-              </div>
-              {movie.runtime && (
-                <div className="flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 text-slate-400" />
-                  {Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m
-                </div>
-              )}
-              <Badge variant="outline" className="text-indigo-400 border-indigo-400/30 uppercase tracking-widest text-[10px]">
-                {movie.language || 'EN'}
-              </Badge>
+          <div className="lg:col-span-9 lg:pt-32">
+            <h1 className="font-display text-[36px] md:text-[42px] leading-tight text-white">{movie.title}</h1>
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-muted">
+              {movie.rating ? <span className="text-highlight font-semibold">★ {Number(movie.rating).toFixed(1)}</span> : null}
+              {movieYear ? <span>{movieYear}</span> : null}
+              {formatRuntime(movieRuntime(movie)) ? <span>{formatRuntime(movieRuntime(movie))}</span> : null}
+              {movie.language ? <span className="uppercase">{movie.language}</span> : null}
             </div>
-
-            <div className="flex flex-wrap gap-2 pt-2">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {movie.genres?.map((genre: string) => (
-                <Badge key={genre} variant="secondary" className="bg-[#1E1E2E] text-slate-300 hover:bg-[#2A2A3C]">
-                  {genre}
-                </Badge>
+                <Badge key={genre} variant="secondary">{genre}</Badge>
               ))}
             </div>
-          </div>
-
-          <div className="space-y-3 max-w-4xl">
-            <h3 className="text-xl font-bold text-white">Storyline</h3>
-            <p className="text-base text-slate-400 leading-relaxed font-light">{movie.overview || 'No overview available.'}</p>
-          </div>
-
-          {/* Reviews Section */}
-          <div className="space-y-8 pt-8 border-t border-[#1E1E2E]">
-            <div className="flex items-center gap-3">
-              <MessageSquare className="h-6 w-6 text-indigo-500" />
-              <h3 className="text-2xl font-bold text-white">Community Reviews</h3>
-            </div>
-
-            {/* AI Review Summary consensus */}
-            <div className="bg-gradient-to-br from-indigo-900/20 to-[#0A0A12] border border-indigo-500/20 rounded-2xl p-6 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Bot className="h-24 w-24 text-indigo-400" />
-              </div>
-              <div className="relative z-10 flex items-start gap-4">
-                <div className="h-12 w-12 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0 shadow-inner">
-                  <Sparkles className="h-6 w-6 text-indigo-400" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-base font-bold text-white flex items-center gap-2">
-                      CineVerse AI Consensus
-                    </h4>
-                  </div>
-                  {movie.aiSummary ? (
-                    <div className="text-sm text-slate-300 leading-relaxed font-light pr-8">
-                      {movie.aiSummary}
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-sm text-slate-400">Generate an intelligent sentiment analysis based on all community reviews.</p>
-                      <Button
-                        onClick={handleGenerateAISummary}
-                        disabled={isGeneratingAI}
-                        variant="secondary"
-                        size="sm"
-                        className="bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 border-indigo-500/30"
-                      >
-                        {isGeneratingAI ? 'Analyzing reviews...' : 'Generate Insights'}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Review Input */}
-            {isAuthenticated ? (
-              <form onSubmit={handleReviewSubmit} className="rounded-2xl border border-[#1E1E2E] bg-[#0A0A12] p-6 space-y-6 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white">
-                    {user?.name ? user.name.charAt(0) : user?.email.charAt(0)}
-                  </div>
-                  <h4 className="text-base font-semibold text-white">Write a review</h4>
-                </div>
-                
-                {reviewError && <p className="text-sm text-red-400 bg-red-500/10 p-3 rounded-md border border-red-500/20">{reviewError}</p>}
-                
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#05050A] p-4 rounded-xl border border-[#1E1E2E]">
-                  {[
-                    { label: 'Overall', val: reviewRating, set: setReviewRating, color: 'text-amber-400' },
-                    { label: 'Comfort', val: comfortRating, set: setComfortRating, color: 'text-indigo-400' },
-                    { label: 'Sound', val: soundRating, set: setSoundRating, color: 'text-purple-400' },
-                    { label: 'Screen', val: screenRating, set: setScreenRating, color: 'text-emerald-400' }
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex flex-col gap-2">
-                      <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">{item.label}</span>
-                      <select 
-                        value={item.val}
-                        onChange={(e) => item.set(parseFloat(e.target.value))}
-                        className={`rounded-md border border-[#1E1E2E] bg-[#0A0A12] px-3 py-2 text-sm ${item.color} focus:outline-none focus:border-indigo-500 cursor-pointer`}
-                      >
-                        {[5.0, 4.5, 4.0, 3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0.5, 0.0].map((val) => (
-                          <option key={val} value={val}>{val === 0.0 && idx !== 0 ? 'N/A' : `${val} ★`}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-
-                <textarea
-                  value={reviewContent}
-                  onChange={(e) => setReviewContent(e.target.value)}
-                  placeholder="What did you think of the film? Share your thoughts..."
-                  rows={4}
-                  className="w-full rounded-xl border border-[#1E1E2E] bg-[#05050A] p-4 text-sm text-slate-200 placeholder:text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none"
-                />
-
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={isSubmittingReview || !reviewContent.trim()} className="px-8">
-                    {isSubmittingReview ? 'Posting...' : 'Post Review'}
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <div className="rounded-2xl border border-[#1E1E2E] bg-[#0A0A12] p-8 text-center flex flex-col items-center justify-center gap-4">
-                <MessageSquare className="h-8 w-8 text-slate-600" />
-                <p className="text-slate-400">Join the conversation and share your thoughts.</p>
-                <Link href="/login"><Button variant="outline">Sign In to Review</Button></Link>
-              </div>
-            )}
-
-            {/* List Reviews */}
-            <div className="space-y-6 pt-4">
-              {movie.reviews && movie.reviews.length > 0 ? (
-                movie.reviews.map((review: any) => (
-                  <div key={review.id} className="group rounded-2xl border border-[#1E1E2E] bg-[#0A0A12] p-6 space-y-4 hover:border-slate-700 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-slate-800 flex items-center justify-center text-sm font-bold text-white uppercase ring-2 ring-[#05050A]">
-                          {review.user.name ? review.user.name[0] : review.user.email[0]}
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold text-slate-200 group-hover:text-indigo-400 transition-colors">{review.user.name || review.user.email}</div>
-                          <div className="text-xs text-slate-500">{new Date(review.createdAt).toLocaleDateString()}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 text-sm text-amber-500 font-bold bg-amber-500/10 px-3 py-1 rounded-full">
-                        <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                        {review.rating.toFixed(1)}
-                      </div>
-                    </div>
-
-                    <p className="text-base text-slate-300 leading-relaxed font-light">{review.content}</p>
-
-                    <div className="flex flex-wrap items-center gap-3 pt-2">
-                      <button className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-400 transition-colors bg-[#1E1E2E]/50 hover:bg-[#1E1E2E] px-3 py-1.5 rounded-full">
-                        <ThumbsUp className="h-3.5 w-3.5" /> <span>0 Likes</span>
-                      </button>
-                      
-                      <div className="w-px h-4 bg-[#1E1E2E] mx-1 hidden sm:block"></div>
-                      
-                      <div className="flex gap-2">
-                        {review.comfortRating > 0 && (
-                          <span className="text-[10px] bg-[#05050A] border border-[#1E1E2E] px-2 py-1 rounded-full text-indigo-400 font-medium">
-                            Comfort: {review.comfortRating}★
-                          </span>
-                        )}
-                        {review.soundRating > 0 && (
-                          <span className="text-[10px] bg-[#05050A] border border-[#1E1E2E] px-2 py-1 rounded-full text-purple-400 font-medium">
-                            Sound: {review.soundRating}★
-                          </span>
-                        )}
-                        {review.screenRating > 0 && (
-                          <span className="text-[10px] bg-[#05050A] border border-[#1E1E2E] px-2 py-1 rounded-full text-emerald-400 font-medium">
-                            Screen: {review.screenRating}★
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-slate-500 py-12">
-                  No reviews yet. Be the first to share your thoughts!
-                </div>
-              )}
+            <p className="mt-5 text-[15px] leading-relaxed text-muted max-w-2xl">
+              {movieOverview(movie) || 'No synopsis available.'}
+            </p>
+            {listMsg ? <p className="mt-3 text-[13px] text-muted">{listMsg}</p> : null}
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Link href={`/shows?movie=${movie.id}`}>
+                <Button>Book tickets</Button>
+              </Link>
+              <Button variant="outline" onClick={addToWatchlist}>Add to watchlist</Button>
+              <Button variant="ghost" onClick={logMovie}>Log movie</Button>
             </div>
           </div>
         </div>
+
+        <section className="mt-14">
+          <h2 className="font-display text-[24px] text-white mb-4">Reviews</h2>
+          {movie.aiSummary ? (
+            <p className="text-[14px] text-muted mb-6 max-w-2xl">{movie.aiSummary}</p>
+          ) : isAuthenticated ? (
+            <div className="mb-6">
+              <Button variant="ghost" size="sm" onClick={handleGenerateAISummary} disabled={isGeneratingAI}>
+                {isGeneratingAI ? 'Analyzing…' : 'Generate community insights'}
+              </Button>
+            </div>
+          ) : null}
+
+          {isAuthenticated ? (
+            <form onSubmit={handleReviewSubmit} className="max-w-2xl space-y-4 mb-10">
+              {reviewError ? <Alert>{reviewError}</Alert> : null}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Overall', val: reviewRating, set: setReviewRating },
+                  { label: 'Comfort', val: comfortRating, set: setComfortRating },
+                  { label: 'Sound', val: soundRating, set: setSoundRating },
+                  { label: 'Screen', val: screenRating, set: setScreenRating },
+                ].map((item) => (
+                  <label key={item.label} className="text-[12px] text-muted">
+                    {item.label}
+                    <select
+                      value={item.val}
+                      onChange={(e) => item.set(parseFloat(e.target.value))}
+                      className="mt-1 w-full h-9 rounded-[6px] border border-[var(--border)] bg-surface px-2 text-[13px] text-foreground"
+                    >
+                      {[5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5, 0].map((val) => (
+                        <option key={val} value={val}>{val === 0 ? 'N/A' : `${val} ★`}</option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <textarea
+                value={reviewContent}
+                onChange={(e) => setReviewContent(e.target.value)}
+                placeholder="What stayed with you after the credits?"
+                rows={4}
+                className="w-full rounded-[8px] border border-[var(--border)] bg-surface p-3 text-[15px] outline-none focus:border-primary/50"
+              />
+              <Button type="submit" disabled={isSubmittingReview || !reviewContent.trim()}>
+                {isSubmittingReview ? 'Posting…' : 'Post review'}
+              </Button>
+            </form>
+          ) : (
+            <EmptyState
+              title="Be the first to review this movie."
+              description="Sign in to write a review."
+              action={<Link href="/login"><Button variant="outline" size="sm">Sign in</Button></Link>}
+            />
+          )}
+
+          <div className="space-y-8 max-w-2xl">
+            {movie.reviews?.length > 0 ? movie.reviews.map((review: any) => (
+              <article key={review.id}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-surface-2 flex items-center justify-center text-[12px] font-semibold">
+                      {initials(review.user?.name, review.user?.email)}
+                    </div>
+                    <div>
+                      <p className="text-[14px] font-medium">{review.user?.name || review.user?.email}</p>
+                      <p className="text-[12px] text-muted">{new Date(review.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <span className="text-[13px] text-highlight font-semibold">★ {review.rating.toFixed(1)}</span>
+                </div>
+                <p className="mt-3 text-[15px] leading-relaxed text-muted">{review.content}</p>
+              </article>
+            )) : (
+              <p className="text-[14px] text-muted">No reviews yet.</p>
+            )}
+          </div>
+        </section>
+
+        {similar.length > 0 && (
+          <section className="mt-14">
+            <h2 className="font-display text-[24px] text-white mb-5">Similar movies</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+              {similar.map((m) => (
+                <MovieCard key={m.id} movie={m} showBook={false} />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
-    </div>
+    </PageShell>
   );
 }

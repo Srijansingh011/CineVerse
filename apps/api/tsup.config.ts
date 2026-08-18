@@ -6,4 +6,5 @@ export default defineConfig({
   dts: true,
   clean: true,
   noExternal: ['@repo/shared', '@repo/database'],
+  external: ['@prisma/client'],
 });

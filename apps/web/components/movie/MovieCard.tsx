@@ -1,115 +1,123 @@
-import React, { useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { Star, Heart, Ticket } from 'lucide-react';
+"use client";
 
-interface Movie {
+import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Star } from "lucide-react";
+import { tmdbImage, movieRuntime } from "../../lib/media";
+import { formatRuntime, formatYear } from "../../lib/format";
+import { cn } from "../../lib/cn";
+
+export interface MovieCardMovie {
   id: string;
   title: string;
-  posterUrl?: string;
-  rating?: number;
-  duration?: number;
+  posterUrl?: string | null;
+  posterPath?: string | null;
+  rating?: number | null;
+  duration?: number | null;
+  runtime?: number | null;
   genres?: string[];
-  language?: string;
+  language?: string | null;
+  releaseDate?: string | null;
+  overview?: string | null;
+  description?: string | null;
 }
 
 interface MovieCardProps {
-  movie: Movie;
+  movie: MovieCardMovie;
+  variant?: "default" | "large" | "compact" | "horizontal";
   className?: string;
+  showBook?: boolean;
 }
 
-export function MovieCard({ movie, className = "" }: MovieCardProps) {
+export function MovieCard({
+  movie,
+  variant = "default",
+  className = "",
+  showBook = true,
+}: MovieCardProps) {
   const [imageError, setImageError] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  const poster = movie.posterUrl || tmdbImage(movie.posterPath, variant === "compact" ? "w342" : "w500");
+  const runtime = formatRuntime(movieRuntime(movie));
+  const year = formatYear(movie.releaseDate);
+  const genre = movie.genres?.[0];
+  const meta = [genre, runtime || year].filter(Boolean).join(" · ");
 
-  const formatDuration = (mins?: number) => {
-    if (!mins) return 'TBA';
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return `${h}h ${m}m`;
-  };
+  if (variant === "horizontal") {
+    return (
+      <Link
+        href={`/movies/${movie.id}`}
+        className={cn("flex gap-3 group", className)}
+      >
+        <div className="relative w-[72px] shrink-0 aspect-[2/3] overflow-hidden rounded-[6px] bg-surface-2">
+          {poster && !imageError ? (
+            <Image
+              src={poster}
+              alt={movie.title}
+              fill
+              className="object-cover"
+              sizes="72px"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-muted p-1 text-center">
+              {movie.title}
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 py-0.5">
+          <h3 className="text-[15px] font-semibold text-white truncate group-hover:text-primary transition-colors">
+            {movie.title}
+          </h3>
+          <p className="text-[13px] text-muted mt-1">{meta || "Title"}</p>
+          {movie.rating ? (
+            <p className="text-[13px] text-highlight mt-1">★ {movie.rating.toFixed(1)}</p>
+          ) : null}
+        </div>
+      </Link>
+    );
+  }
+
+  const titleSize = variant === "large" ? "text-[20px]" : "text-[15px] md:text-[16px]";
 
   return (
-    <Link
-      href={`/movies/${movie.id}`}
-      className={`group block relative rounded-xl overflow-hidden bg-[#0A0A14] transition-all duration-500 ease-out hover-lift glow-border ${className}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Poster Image */}
-      <div className="aspect-[2/3] w-full relative overflow-hidden">
-        {!imageError && movie.posterUrl ? (
-          <Image
-            src={movie.posterUrl}
-            alt={movie.title}
-            fill
-            className={`object-cover transition-all duration-700 ease-out ${isHovered ? 'scale-110 brightness-75' : 'scale-100 brightness-100'}`}
-            onError={() => setImageError(true)}
-            sizes="(max-width: 768px) 50vw, 33vw"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-tr from-[#0A0A14] via-[#12121F] to-[#1A1A2E] flex items-center justify-center p-4 text-center">
-            <span className="text-slate-500 font-medium text-sm">{movie.title}</span>
-          </div>
-        )}
-
-        {/* Permanent bottom fade */}
-        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#0A0A14] to-transparent pointer-events-none" />
-
-        {/* Hover Overlay */}
-        <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-all duration-500 flex flex-col justify-end p-3 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-          <div className={`transform transition-all duration-500 ease-out ${isHovered ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'}`}>
-            {/* Wishlist button */}
-            <button
-              className="absolute top-3 right-3 p-2 rounded-full glass text-white/70 hover:text-rose-400 transition-colors duration-200"
-              onClick={(e) => e.preventDefault()}
-            >
-              <Heart className="h-4 w-4" />
-            </button>
-
-            {/* Book CTA */}
-            <button
-              className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold py-2 rounded-lg transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-1.5 text-xs"
-              onClick={(e) => e.preventDefault()}
-            >
-              <Ticket className="h-4 w-4" />
-              Book Tickets
-            </button>
-          </div>
+    <article className={cn("group min-w-0", className)}>
+      <Link href={`/movies/${movie.id}`} className="block">
+        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-[8px] bg-surface-2">
+          {poster && !imageError ? (
+            <Image
+              src={poster}
+              alt={movie.title}
+              fill
+              className="object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+              sizes={variant === "large" ? "(max-width: 768px) 50vw, 33vw" : "(max-width: 768px) 50vw, 16vw"}
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center p-3 text-center text-[13px] text-muted">
+              {movie.title}
+            </div>
+          )}
+          {movie.rating ? (
+            <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-[4px] bg-black/70 px-1.5 py-0.5 text-[12px] font-semibold text-white">
+              <Star className="h-3 w-3 fill-highlight text-highlight" />
+              {movie.rating.toFixed(1)}
+            </span>
+          ) : null}
         </div>
-
-        {/* Rating Badge — glossy glass */}
-        {movie.rating && (
-          <div className="absolute top-2 left-2 glass px-2 py-0.5 rounded-md flex items-center gap-1 shadow-lg">
-            <Star className="h-3 w-3 text-amber-400 fill-amber-400 animate-twinkle" />
-            <span className="text-white text-[11px] font-bold tracking-wide">{movie.rating.toFixed(1)}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Card Info */}
-      <div className="p-3 space-y-1">
-        <h3 className="font-semibold text-slate-100 truncate text-[13px] group-hover:text-white transition-colors" title={movie.title}>
+        <h3 className={cn("mt-2 font-semibold text-white leading-snug line-clamp-2", titleSize)}>
           {movie.title}
         </h3>
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-          <span>{movie.language || 'Multiple'}</span>
-          <span className="w-1 h-1 rounded-full bg-slate-700" />
-          <span>{formatDuration(movie.duration)}</span>
-        </div>
-        {movie.genres && movie.genres.length > 0 && (
-          <div className="flex gap-1 flex-wrap pt-0.5">
-            {movie.genres.slice(0, 2).map((genre) => (
-              <span
-                key={genre}
-                className="text-[9px] uppercase tracking-wider font-semibold text-indigo-300/70 bg-indigo-500/[0.08] px-2 py-px rounded-full border border-indigo-500/15"
-              >
-                {genre}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </Link>
+        <p className="mt-0.5 text-[13px] text-muted truncate">{meta}</p>
+      </Link>
+      {showBook && variant !== "compact" ? (
+        <Link
+          href={`/shows?movie=${movie.id}`}
+          className="mt-2 inline-block text-[13px] font-semibold text-primary hover:text-primary-hover"
+        >
+          Book
+        </Link>
+      ) : null}
+    </article>
   );
 }

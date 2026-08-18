@@ -1,17 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '../store/authStore';
 import { apiFetch } from '../lib/api';
-import { Film, LogOut, Search, MapPin, Menu, X, Sparkles } from 'lucide-react';
+import { Search, MapPin, ChevronDown } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
+import { Logo } from './layout/Logo';
+import { cn } from '../lib/cn';
+import { initials } from '../lib/format';
 
 const navLinks = [
-  { href: '/shows', label: 'Movies' },
+  { href: '/search', label: 'Movies' },
+  { href: '/shows', label: 'Cinemas' },
+  { href: '/community', label: 'Community' },
   { href: '/parties', label: 'Watch Party' },
   { href: '/planner', label: 'Planner' },
 ];
@@ -21,21 +26,53 @@ export default function Navbar() {
   const pathname = usePathname();
   const { user, clearAuth, isAuthenticated } = useAuthStore();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [cities, setCities] = useState<any[]>([]);
+  const [city, setCity] = useState<{ id: string; name: string } | null>(null);
+  const [cityOpen, setCityOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const cityRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 8);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await apiFetch('/theatres/cities');
+        const list = res.data || [];
+        setCities(list);
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('cv-city') : null;
+        const parsed = saved ? JSON.parse(saved) : null;
+        const match = list.find((c: any) => c.id === parsed?.id) || list[0];
+        if (match) {
+          setCity(match);
+          localStorage.setItem('cv-city', JSON.stringify(match));
+        }
+      } catch {
+        setCity({ id: '', name: 'Bengaluru' });
+      }
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (cityRef.current && !cityRef.current.contains(e.target as Node)) setCityOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   const handleLogout = async () => {
     try {
       await apiFetch('/auth/logout', { method: 'POST' });
-    } catch (e) {
-      // Ignored
+    } catch {
+      // ignore
     } finally {
       clearAuth();
       router.push('/login');
@@ -44,187 +81,147 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 w-full z-50 transition-all duration-500 ${
+      className={cn(
+        "fixed top-0 w-full z-50 h-16 transition-colors duration-200",
         isScrolled
-          ? 'glass-strong shadow-2xl shadow-black/30'
-          : 'bg-gradient-to-b from-black/70 via-black/30 to-transparent'
-      }`}
+          ? "bg-[#0b0b0f]/88 backdrop-blur-md border-b border-[var(--border)]"
+          : "bg-gradient-to-b from-black/70 to-transparent"
+      )}
     >
-      {/* Accent glow line at top */}
-      <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
+      <div className="cv-container h-full">
+        <div className="flex h-full items-center gap-6">
+          <Logo />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between gap-4">
-          {/* Logo & Location */}
-          <div className="flex items-center gap-4 shrink-0">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="relative">
-                <Film className="h-5 w-5 text-indigo-400 group-hover:text-indigo-300 transition-colors duration-300" />
-                <div className="absolute inset-0 bg-indigo-500/30 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              </div>
-              <span className="text-lg font-bold tracking-tight text-white group-hover:text-slate-100 transition-colors duration-300"
-                    style={{ fontFamily: 'var(--font-display)' }}>
-                CineVerse
-              </span>
-            </Link>
-
-            <div className="hidden lg:flex items-center gap-1 text-slate-400 hover:text-white cursor-pointer px-2 py-1 rounded-full hover:bg-white/[0.06] transition-all duration-300 border border-transparent hover:border-white/10 text-xs">
-              <MapPin className="h-3 w-3 text-indigo-400" />
-              <span className="text-xs font-medium">Bengaluru</span>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-md relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors duration-300" />
-            <Input
-              placeholder="Search movies, cinemas, users..."
-              className="pl-9 bg-white/[0.04] border-white/[0.06] hover:border-white/10 focus:bg-white/[0.06] focus:border-indigo-500/40 transition-all duration-300 rounded-full h-8 text-xs backdrop-blur-md"
-              onFocus={() => router.push('/search')}
-            />
-          </div>
-
-          {/* Navigation & Profile */}
-          <div className="hidden lg:flex items-center gap-5 shrink-0">
-            <div className="flex items-center gap-0.5">
-              {navLinks.map((link) => {
-                const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 ${
-                      isActive
-                        ? 'text-white bg-white/[0.08]'
-                        : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    {link.label}
-                    {isActive && (
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/50" />
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-
-            <div className="h-4 w-px bg-white/[0.08]" />
-
-            <div className="flex items-center gap-3">
-              {isAuthenticated && user ? (
-                <div className="flex items-center gap-3">
-                  <NotificationBell />
-
-                  <Link href="/profile" className="group relative flex items-center gap-2">
-                    <div className="relative">
-                      <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-indigo-500 via-violet-500 to-purple-500 flex items-center justify-center text-[11px] font-bold text-white ring-2 ring-[#05050A] group-hover:ring-indigo-500/30 transition-all duration-300">
-                        {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
-                    </div>
-                  </Link>
-
-                  {(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') && (
-                    <Button variant="outline" size="sm" onClick={() => router.push('/admin')}>
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Admin
-                    </Button>
-                  )}
-
-                  <button
-                    onClick={handleLogout}
-                    className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/[0.08] transition-all duration-300"
-                    title="Sign Out"
-                  >
-                    <LogOut className="h-4.5 w-4.5" />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Link
-                    href="/login"
-                    className="text-xs font-medium text-slate-400 hover:text-white transition-colors duration-300 px-2 py-1"
-                  >
-                    Sign In
-                  </Link>
-                  <Button size="sm" onClick={() => router.push('/register')}>
-                    Sign Up
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Mobile Menu Toggle */}
-          <div className="lg:hidden flex items-center gap-3">
-            {isAuthenticated && <NotificationBell />}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all duration-300"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Menu Dropdown */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden absolute top-14 w-full glass-strong shadow-2xl shadow-black/50 animate-scale-in origin-top">
-          <div className="p-4 flex flex-col gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-              <Input
-                placeholder="Search..."
-                className="w-full pl-10 bg-white/[0.04] border-white/[0.06] rounded-xl"
-                onFocus={() => { setMobileMenuOpen(false); router.push('/search'); }}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1 text-base font-medium">
-              <Link href="/" className="p-3 rounded-xl hover:bg-white/[0.04] text-slate-300 hover:text-white transition-all duration-200" onClick={() => setMobileMenuOpen(false)}>
-                Home
-              </Link>
-              {navLinks.map((link) => (
+          <div className="hidden lg:flex items-center gap-1">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
+              return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`p-3 rounded-xl transition-all duration-200 ${
-                    pathname === link.href
-                      ? 'bg-indigo-500/10 text-indigo-400'
-                      : 'hover:bg-white/[0.04] text-slate-300 hover:text-white'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    "px-2.5 py-1.5 text-[13px] font-medium transition-colors",
+                    isActive ? "text-white" : "text-muted hover:text-white"
+                  )}
                 >
                   {link.label}
                 </Link>
-              ))}
-              {isAuthenticated && (
-                <Link href="/profile" className="p-3 rounded-xl hover:bg-white/[0.04] text-indigo-400 transition-all duration-200" onClick={() => setMobileMenuOpen(false)}>
-                  My Profile
-                </Link>
+              );
+            })}
+          </div>
+
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => router.push('/search')}
+              className="md:hidden p-2 text-muted hover:text-white"
+              aria-label="Search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+
+            <div className="hidden md:block relative w-[220px] lg:w-[280px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+              <Input
+                readOnly
+                placeholder="Search movies, actors, cinemas..."
+                className="pl-9 h-9 bg-surface-2 border-[var(--border)] cursor-pointer text-[13px]"
+                onFocus={() => router.push('/search')}
+                onClick={() => router.push('/search')}
+              />
+            </div>
+
+            <div ref={cityRef} className="relative hidden sm:block">
+              <button
+                type="button"
+                onClick={() => setCityOpen((v) => !v)}
+                className="flex items-center gap-1.5 h-9 px-2.5 text-[13px] text-muted hover:text-white"
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                <span className="max-w-[100px] truncate">{city?.name || 'City'}</span>
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              {cityOpen && cities.length > 0 && (
+                <div className="absolute right-0 mt-1 w-48 bg-surface border border-[var(--border)] rounded-[8px] py-1 shadow-xl z-50">
+                  {cities.map((c: any) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-[13px] hover:bg-white/[0.04]",
+                        city?.id === c.id ? "text-white" : "text-muted"
+                      )}
+                      onClick={() => {
+                        setCity(c);
+                        localStorage.setItem('cv-city', JSON.stringify(c));
+                        setCityOpen(false);
+                      }}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
-            <div className="h-px bg-white/[0.06] w-full my-1" />
-
-            {isAuthenticated ? (
-              <Button variant="danger" className="w-full" onClick={() => { handleLogout(); setMobileMenuOpen(false); }}>
-                Sign Out
-              </Button>
+            {isAuthenticated && user ? (
+              <>
+                <NotificationBell />
+                <div ref={profileRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setProfileOpen((v) => !v)}
+                    className="h-8 w-8 rounded-full bg-surface-2 border border-[var(--border)] text-[12px] font-semibold text-white"
+                    aria-label="Profile"
+                  >
+                    {initials(user.name, user.email)}
+                  </button>
+                  {profileOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-surface border border-[var(--border)] rounded-[8px] py-1 shadow-xl z-50">
+                      <div className="px-3 py-2 border-b border-[var(--border)]">
+                        <p className="text-[13px] font-medium text-white truncate">{user.name || 'Account'}</p>
+                        <p className="text-[12px] text-muted truncate">{user.email}</p>
+                      </div>
+                      <Link href="/profile" className="block px-3 py-2 text-[13px] text-muted hover:text-white" onClick={() => setProfileOpen(false)}>
+                        Profile
+                      </Link>
+                      <Link href="/notifications" className="block px-3 py-2 text-[13px] text-muted hover:text-white" onClick={() => setProfileOpen(false)}>
+                        Notifications
+                      </Link>
+                      {(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') && (
+                        <Link href="/admin" className="block px-3 py-2 text-[13px] text-muted hover:text-white" onClick={() => setProfileOpen(false)}>
+                          Admin
+                        </Link>
+                      )}
+                      {(user.role === 'THEATRE_OWNER' || user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') && (
+                        <Link href="/theatre-owner" className="block px-3 py-2 text-[13px] text-muted hover:text-white" onClick={() => setProfileOpen(false)}>
+                          Theatre dashboard
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full text-left px-3 py-2 text-[13px] text-danger hover:bg-white/[0.03]"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
-              <div className="flex flex-col gap-2">
-                <Button variant="outline" className="w-full" onClick={() => { router.push('/login'); setMobileMenuOpen(false); }}>
-                  Sign In
-                </Button>
-                <Button className="w-full" onClick={() => { router.push('/register'); setMobileMenuOpen(false); }}>
-                  Sign Up
+              <div className="flex items-center gap-2">
+                <Link href="/login" className="hidden sm:inline text-[13px] text-muted hover:text-white">
+                  Sign in
+                </Link>
+                <Button size="sm" onClick={() => router.push('/register')}>
+                  Join
                 </Button>
               </div>
             )}
           </div>
         </div>
-      )}
+      </div>
     </nav>
   );
 }

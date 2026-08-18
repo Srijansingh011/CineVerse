@@ -61,6 +61,16 @@ function ShowsContent() {
     fetchInitialData();
   }, []);
 
+  // Keep the selected movie in sync with the URL param so deep links
+  // (e.g. the "Book Tickets" button: /shows?movie=<id>) reliably preselect.
+  useEffect(() => {
+    const movieParam = searchParams.get('movie');
+    if (movieParam && movieParam !== selectedMovieId) {
+      setSelectedMovieId(movieParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // Fetch movie details if selectedMovieId changes
   useEffect(() => {
     if (!selectedMovieId) {
@@ -206,9 +216,9 @@ function ShowsContent() {
                 <div className="aspect-[16/9] w-full relative bg-slate-950">
                   <img
                     src={selectedMovie.backdropPath 
-                      ? (selectedMovie.backdropPath.startsWith('http') ? selectedMovie.backdropPath : `https://image.tmdb.org/t/p/w500${selectedMovie.backdropPath}`)
+                      ? (/^(https?:|\/demo\/)/.test(selectedMovie.backdropPath) ? selectedMovie.backdropPath : `https://image.tmdb.org/t/p/w500${selectedMovie.backdropPath}`)
                       : (selectedMovie.posterPath 
-                          ? (selectedMovie.posterPath.startsWith('http') ? selectedMovie.posterPath : `https://image.tmdb.org/t/p/w500${selectedMovie.posterPath}`)
+                          ? (/^(https?:|\/demo\/)/.test(selectedMovie.posterPath) ? selectedMovie.posterPath : `https://image.tmdb.org/t/p/w500${selectedMovie.posterPath}`)
                           : 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop')}
                     alt={selectedMovie.title}
                     className="h-full w-full object-cover opacity-60"
@@ -221,7 +231,7 @@ function ShowsContent() {
                     <div className="w-20 shrink-0 rounded-lg overflow-hidden border border-[#1E1E2E] shadow-xl">
                       <img
                         src={selectedMovie.posterPath 
-                          ? (selectedMovie.posterPath.startsWith('http') ? selectedMovie.posterPath : `https://image.tmdb.org/t/p/w500${selectedMovie.posterPath}`)
+                          ? (/^(https?:|\/demo\/)/.test(selectedMovie.posterPath) ? selectedMovie.posterPath : `https://image.tmdb.org/t/p/w500${selectedMovie.posterPath}`)
                           : 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop'}
                         alt={selectedMovie.title}
                         className="w-full h-auto"

@@ -1,4 +1,5 @@
 import { useAuthStore } from '../store/authStore';
+import { getDemoResponse } from './demoData';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL 
   ? `${process.env.NEXT_PUBLIC_API_URL}/api` 
@@ -6,6 +7,28 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 
 interface FetchOptions extends RequestInit {
   skipAuth?: boolean;
+}
+
+/**
+ * When the real backend is unreachable (e.g. in preview environments where
+ * http://localhost:4000 does not exist), fall back to bundled demo data for
+ * read-only endpoints so the UI stays fully presentable. The live API always
+ * takes precedence — this only runs after a genuine network failure.
+ */
+function demoFallback(endpoint: string, options: FetchOptions): any {
+  const method = (options.method || 'GET').toUpperCase();
+  if (method !== 'GET') {
+    // Non-GET actions (booking, reviews, etc.) require the real backend.
+    throw new Error('Backend unavailable. Connect the CineVerse API to enable this action.');
+  }
+  const demo = getDemoResponse(endpoint);
+  if (demo !== undefined) {
+    if (typeof console !== 'undefined') {
+      console.log(`[v0] Serving demo data for ${endpoint} (backend unreachable)`);
+    }
+    return demo;
+  }
+  throw new Error('Backend unavailable');
 }
 
 export async function apiFetch(endpoint: string, options: FetchOptions = {}): Promise<any> {
@@ -22,7 +45,13 @@ export async function apiFetch(endpoint: string, options: FetchOptions = {}): Pr
   }
 
   const url = `${API_BASE_URL}${endpoint}`;
-  let response = await fetch(url, { ...options, headers });
+  let response: Response;
+  try {
+    response = await fetch(url, { ...options, headers });
+  } catch {
+    // Network-level failure (backend not running / unreachable).
+    return demoFallback(endpoint, options);
+  }
 
   // Handle token refresh on 401
   if (response.status === 401 && !options.skipAuth) {

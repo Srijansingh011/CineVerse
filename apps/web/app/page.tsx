@@ -71,7 +71,7 @@ export default function Home() {
             {/* Backdrop image */}
             <img
               src={heroMovie.backdropPath
-                ? (heroMovie.backdropPath.startsWith('http') ? heroMovie.backdropPath : `https://image.tmdb.org/t/p/original${heroMovie.backdropPath}`)
+                ? (/^(https?:|\/demo\/)/.test(heroMovie.backdropPath) ? heroMovie.backdropPath : `https://image.tmdb.org/t/p/original${heroMovie.backdropPath}`)
                 : 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2000&auto=format&fit=crop'}
               alt={heroMovie.title}
               className="w-full h-full object-cover object-center opacity-60 scale-105 animate-fade-in"
@@ -209,7 +209,7 @@ export default function Home() {
                   <MovieCard
                     movie={{
                       ...movie,
-                      posterUrl: movie.posterPath ? (movie.posterPath.startsWith('http') ? movie.posterPath : `https://image.tmdb.org/t/p/w500${movie.posterPath}`) : undefined,
+                      posterUrl: movie.posterPath ? (/^(https?:|\/demo\/)/.test(movie.posterPath) ? movie.posterPath : `https://image.tmdb.org/t/p/w500${movie.posterPath}`) : undefined,
                     }}
                   />
                 </div>
@@ -263,7 +263,7 @@ export default function Home() {
                     <MovieCard
                       movie={{
                         ...movie,
-                        posterUrl: movie.posterPath ? (movie.posterPath.startsWith('http') ? movie.posterPath : `https://image.tmdb.org/t/p/w500${movie.posterPath}`) : undefined,
+                        posterUrl: movie.posterPath ? (/^(https?:|\/demo\/)/.test(movie.posterPath) ? movie.posterPath : `https://image.tmdb.org/t/p/w500${movie.posterPath}`) : undefined,
                       }}
                     />
                   </div>

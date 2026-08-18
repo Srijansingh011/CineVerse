@@ -138,7 +138,7 @@ export default function SearchPage() {
                   movie={{
                     ...movie,
                     posterUrl: movie.posterPath 
-                      ? (movie.posterPath.startsWith('http') ? movie.posterPath : `https://image.tmdb.org/t/p/w500${movie.posterPath}`)
+                      ? (/^(https?:|\/demo\/)/.test(movie.posterPath) ? movie.posterPath : `https://image.tmdb.org/t/p/w500${movie.posterPath}`)
                       : undefined
                   }} 
                 />

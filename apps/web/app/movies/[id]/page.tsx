@@ -134,10 +134,10 @@ export default function MovieDetails({ params }: { params: Promise<{ id: string 
 
   const movieYear = movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 'N/A';
   const tmdbPosterUrl = movie.posterPath 
-    ? (movie.posterPath.startsWith('http') ? movie.posterPath : `https://image.tmdb.org/t/p/w500${movie.posterPath}`) 
+    ? (/^(https?:|\/demo\/)/.test(movie.posterPath) ? movie.posterPath : `https://image.tmdb.org/t/p/w500${movie.posterPath}`) 
     : 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop';
   const tmdbBackdropUrl = movie.backdropPath 
-    ? (movie.backdropPath.startsWith('http') ? movie.backdropPath : `https://image.tmdb.org/t/p/original${movie.backdropPath}`) 
+    ? (/^(https?:|\/demo\/)/.test(movie.backdropPath) ? movie.backdropPath : `https://image.tmdb.org/t/p/original${movie.backdropPath}`) 
     : '';
 
   return (

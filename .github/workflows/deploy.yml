@@ -5,10 +5,9 @@ on:
     branches: [main]
 
 jobs:
-  deploy:
-    name: Build & Deploy to Production
+  build:
+    name: Build & Type Check
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
@@ -39,20 +38,5 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
-      # ── Deploy Frontend (Vercel) ────────────────────────────────
-      - name: Deploy Web to Vercel
-        uses: amondnet/vercel-action@v42.3.0
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: apps/web
-          vercel-args: '--prod'
-
-        # ── Deploy API (Railway) ────────────────────────────────────
-      - name: Deploy API to Railway
-        uses: bervProject/railway-deploy@main
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        with:
-          service: "my-service" 
+      # Vercel and Railway deploy automatically via their GitHub integrations.
+      # No manual deploy steps needed here.
